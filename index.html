@@ -265,7 +265,7 @@
   /* ───────────── UI overlay ───────────── */
   .ui {
     position: absolute; inset: 0; z-index: var(--z-ui);
-    display: grid; grid-template-columns: 1fr auto; grid-template-rows: auto 1fr auto;
+    display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto 1fr auto;
     padding: var(--gutter); padding-top: calc(var(--gutter) * .8);
     pointer-events: none;
   }
@@ -273,11 +273,11 @@
   [data-reveal] { visibility: hidden; }
   .is-revealed [data-reveal] { visibility: visible; }
 
-  .brand { grid-column: 1; grid-row: 1; align-self: start; }
+  .brand { grid-column: 1; grid-row: 1; align-self: start; min-width: 0; }
   .brand__name {
     margin: 0;
     font-weight: 200;
-    font-size: clamp(44px, 7.6vw, 132px);
+    font-size: clamp(44px, 6.6vw, 124px);
     line-height: .95;
     letter-spacing: .015em;
     color: #dde5ee;
@@ -295,11 +295,13 @@
   }
   @keyframes glint { 0% { background-position: 130% 0; } 32%, 100% { background-position: -30% 0; } }
 
-  .nav { grid-column: 2; grid-row: 1; align-self: start; padding-top: 6px; }
+  /* pinned top-right, independent of the title width */
+  .nav { position: absolute; top: calc(var(--gutter) * .8 + 4px); right: var(--gutter); z-index: 1; }
   .nav ul { display: flex; gap: clamp(24px, 5vw, 76px); margin: 0; padding: 0; list-style: none; }
   .nav a {
     position: relative; display: inline-block; padding: 12px 0;
-    font-size: 13px; font-weight: 400; letter-spacing: .08em; color: var(--ink-soft);
+    font-size: 13px; font-weight: 400; letter-spacing: .08em; color: rgba(236,242,249,.92);
+    text-shadow: 0 1px 14px rgba(0,0,0,.75), 0 0 2px rgba(0,0,0,.4);
     transition: color .3s;
   }
   .nav a::after {
@@ -559,6 +561,13 @@
   .reel__close svg { width: 16px; height: 16px; }
 
   /* ───────────── Responsive ───────────── */
+  /* medium screens: the name needs the full width, so the menu sits under it */
+  @media (max-width: 1199px) {
+    .ui { grid-template-rows: auto auto 1fr auto; }
+    .nav { position: static; grid-column: 1; grid-row: 2; justify-self: start; padding-top: 4px; }
+    .aside { grid-row: 3; }
+    .foot { grid-row: 4; }
+  }
   @media (max-width: 1100px) {
     .grid { grid-template-columns: repeat(2, 1fr); }
     .foot { grid-template-columns: 1fr; justify-items: start; }
