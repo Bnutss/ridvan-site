@@ -444,16 +444,17 @@
   .replay svg { width: 12px; height: 12px; transform: rotate(90deg); transition: transform .8s var(--ease-out); }
   .replay:hover svg { transform: rotate(-270deg); }
 
-  /* ───────────── Slide stack: About slides over the stage ───────────── */
-  .stack { position: relative; }
-  .stack > .hero { position: sticky; top: 0; }
+  /* ───────────── Scenes: hero and About share one pinned frame ─────────────
+     Without JS/WebGL (or with reduced motion) they simply stack in the flow. */
+  .scenes { position: relative; }
+  .scenes.is-staged { height: 100vh; height: 100svh; overflow: hidden; }
+  .scenes.is-staged .about { position: absolute; inset: 0; opacity: 0; visibility: hidden; }
+  .particles { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 45; pointer-events: none; }
 
   .about {
     position: relative; z-index: 1;
     min-height: 100vh; min-height: 100svh;
     background: #050608; overflow: hidden;
-    border-radius: 28px 28px 0 0;
-    box-shadow: 0 -30px 80px rgba(0,0,0,.65);
   }
   .about__media { position: absolute; inset: 0; overflow: hidden; }
   .about__media img { width: 100%; height: 100%; object-fit: cover; object-position: 62% 50%; transform-origin: 70% 50%; will-change: transform; }
@@ -504,7 +505,6 @@
     .facts { grid-template-columns: 1fr 1fr; row-gap: 22px; }
   }
   @media (max-width: 767px) {
-    .about { border-radius: 20px 20px 0 0; }
     .about__media img { object-position: 42% 50%; }
     .about__shade {
       background:
@@ -658,6 +658,7 @@
 <a class="skip-link" href="#about">Skip to content</a>
 
 <div class="progress" aria-hidden="true"><i id="progressBar"></i></div>
+<canvas class="particles" id="particles" aria-hidden="true"></canvas>
 
 <div class="loader" id="loader">
   <div class="loader__inner">
@@ -678,7 +679,7 @@
   <div class="cursor__dot" id="cursorDot"></div>
 </div>
 
-<div class="stack">
+<div class="scenes" id="scenes">
 <header class="hero" id="top">
   <div class="media" id="media" aria-hidden="true">
     <div class="media__stage" id="stage">
@@ -775,7 +776,7 @@
   <div class="about__media">
     <picture>
       <source media="(max-width: 767px)" srcset="assets/about-mobile.jpg?v=2">
-      <img src="assets/about.jpg?v=2" alt="Ridvan Ağgül at a grandMA3 console, running a night festival show" width="1672" height="941" loading="lazy">
+      <img src="assets/about.jpg?v=2" alt="Ridvan Ağgül at a grandMA3 console, running a night festival show" width="1672" height="941">
     </picture>
   </div>
   <div class="about__shade" aria-hidden="true"></div>
@@ -921,6 +922,7 @@
     gsap.ticker.add((t) => lenis.raf(t * 1000));
     gsap.ticker.lagSmoothing(0);
   }
+  let pinST = null; // the pinned hero/About frame, set up after the reveal
   const lockScroll = () => { body.classList.add('is-locked'); lenis?.stop(); };
   const unlockScroll = () => { body.classList.remove('is-locked'); lenis?.start(); };
   const scrollToTarget = (target) => {
@@ -931,6 +933,11 @@
   document.addEventListener('click', (e) => {
     const a = e.target.closest('a[href^="#"]');
     if (!a || a.getAttribute('href').length < 2) return;
+    if (a.getAttribute('href') === '#about' && pinST) {
+      e.preventDefault();
+      scrollToTarget(pinST.start + (pinST.end - pinST.start) * .92);
+      return;
+    }
     const target = $(a.getAttribute('href'));
     if (!target) return;
     e.preventDefault();
@@ -1111,6 +1118,8 @@
     });
   }
 
+  let heroOp = 1; // written by the scene director, read by the lasers
+
   /* ═════════ Lasers ═════════ */
   function createLasers() {
     const canvas = $('#lasers');
@@ -1186,7 +1195,7 @@
     new IntersectionObserver(([en]) => { visible = en.isIntersecting; }).observe(hero);
 
     function frame(time, delta) {
-      if (!visible) return;
+      if (!visible || heroOp < .02) return;
       t += (reduced ? 0 : delta / 1000);
       // pointer lag gives the beams weight, like moving heads catching up
       aim.x += (target.x - aim.x) * .14; aim.y += (target.y - aim.y) * .14;
@@ -1284,9 +1293,6 @@
 
     // entrance: the laser band draws out from the centre, then the words arrive
     if (window.ScrollTrigger) {
-      gsap.timeline({ scrollTrigger: { trigger: '#ticker', start: 'top 85%' } })
-        .fromTo('.ticker__bg', { clipPath: 'inset(0% 50% 0% 50%)' }, { clipPath: 'inset(0% 0% 0% 0%)', duration: 1.6, ease: 'expo.inOut' })
-        .from('.ticker__viewport', { opacity: 0, duration: 1.2, ease: 'power2.out' }, .7);
       gsap.fromTo('.ticker__bg img', { xPercent: -2, scale: 1.06 }, { xPercent: 2, scale: 1.06, ease: 'none',
         scrollTrigger: { trigger: '#ticker', start: 'top bottom', end: 'bottom top', scrub: 1 } });
     }
@@ -1303,18 +1309,266 @@
     gsap.to('#lasers', { opacity: 1, duration: 1.8, ease: 'power2.inOut' });
   }
 
+  /* ═════════ Particle scenes ═════════
+     Stage → (dissolves into light ribbons) → About photo → (streams into) the ticker's
+     laser lines → (fold into) the R\ mark → (burst) → Selected work.
+     Everything is a pure function of scroll position, so it scrubs both ways. */
+  const sm = (x, a, b) => { const t = Math.min(Math.max((x - a) / (b - a), 0), 1); return t * t * (3 - 2 * t); };
+  const pw = (x, stops) => { // piecewise-linear lookup
+    if (x <= stops[0][0]) return stops[0][1];
+    for (let i = 1; i < stops.length; i++) {
+      const [x1, y1] = stops[i], [x0, y0] = stops[i - 1];
+      if (x <= x1) return y0 + (y1 - y0) * (x - x0) / (x1 - x0);
+    }
+    return stops[stops.length - 1][1];
+  };
+  const loadImg = (src) => new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = src; });
+
+  // the CSS shades, mirrored so the particle picture matches what is on screen
+  const heroShade = (x, y) => (1 - pw(x, [[0, .8], [.28, .42], [.52, 0]])) * (1 - pw(y, [[.74, 0], [1, .85]])) * (1 - pw(y, [[0, .55], [.18, 0]]));
+  const aboutShade = (x, y) => innerWidth < 768
+    ? 1 - pw(1 - y, [[0, .96], [.45, .82], [.72, .35], [1, .55]])
+    : (1 - pw(x, [[0, .95], [.3, .82], [.55, .35], [.75, 0]])) * (1 - pw(y, [[.66, 0], [.84, .5], [1, .92]])) * (1 - pw(y, [[0, .7], [.22, 0]]));
+
+  function sampleImage(img, w, h, posX, n, shade) {
+    const cw = 420, ch = Math.max(1, Math.round(cw * h / w));
+    const c = document.createElement('canvas'); c.width = cw; c.height = ch;
+    const x2 = c.getContext('2d', { willReadFrequently: true });
+    const s = Math.max(cw / img.width, ch / img.height);
+    x2.drawImage(img, (cw - img.width * s) * posX, (ch - img.height * s) * .5, img.width * s, img.height * s);
+    const d = x2.getImageData(0, 0, cw, ch).data;
+    const pos = new Float32Array(n * 2), col = new Float32Array(n * 3);
+    let i = 0, guard = 0;
+    while (i < n && guard++ < n * 80) {
+      const x = Math.random() * cw | 0, y = Math.random() * ch | 0, k = (y * cw + x) * 4;
+      const sh = shade(x / cw, y / ch);
+      const L = (d[k] * .3 + d[k + 1] * .59 + d[k + 2] * .11) / 255 * sh;
+      if (Math.random() > .035 + Math.pow(L, 1.1) * 1.4) continue; // bright areas get denser
+      pos[i * 2] = (x + Math.random()) / cw; pos[i * 2 + 1] = (y + Math.random()) / ch;
+      const boost = 1.55 * sh / 255;
+      col[i * 3] = d[k] * boost; col[i * 3 + 1] = d[k + 1] * boost; col[i * 3 + 2] = d[k + 2] * boost;
+      i++;
+    }
+    for (; i < n; i++) { pos[i * 2] = Math.random(); pos[i * 2 + 1] = Math.random(); }
+    return { pos, col };
+  }
+
+  function sampleLines(n) { // the two laser lines of the ticker art (23.2% / 76.1%)
+    const pos = new Float32Array(n * 2);
+    for (let i = 0; i < n; i++) {
+      pos[i * 2] = Math.random();
+      pos[i * 2 + 1] = (i % 2 ? .232 : .761) + (Math.random() - .5) * (Math.random() < .85 ? .012 : .12);
+    }
+    return pos;
+  }
+
+  function sampleMark(n) { // the R\ monogram
+    const S = 320, c = document.createElement('canvas'); c.width = c.height = S;
+    const x2 = c.getContext('2d', { willReadFrequently: true });
+    const k = S / 30;
+    x2.translate((S - 26 * k) / 2, (S - 24 * k) / 2); x2.scale(k, k);
+    x2.strokeStyle = '#fff'; x2.lineWidth = 1.9; x2.lineCap = 'round'; x2.lineJoin = 'round';
+    x2.stroke(new Path2D('M2.5 22V2.5h7a5 5 0 0 1 0 10h-7M8.5 12.5 13.5 22M16 2.5 24 22'));
+    const d = x2.getImageData(0, 0, S, S).data, pos = new Float32Array(n * 2);
+    let i = 0, guard = 0;
+    while (i < n && guard++ < n * 200) {
+      const x = Math.random() * S | 0, y = Math.random() * S | 0;
+      if (d[(y * S + x) * 4 + 3] < 128) continue;
+      pos[i * 2] = (x + Math.random()) / S; pos[i * 2 + 1] = (y + Math.random()) / S; i++;
+    }
+    for (; i < n; i++) { pos[i * 2] = .5; pos[i * 2 + 1] = .5; }
+    return pos;
+  }
+
+  const VS = `
+    precision highp float;
+    attribute vec2 aP0, aP1, aP2, aP3;
+    attribute vec3 aC0, aC1;
+    attribute vec4 aR;
+    uniform vec2 uRes, uMouse;
+    uniform float uT, uTime, uAlpha, uDpr;
+    uniform vec4 uR0, uR1, uR2, uR3;
+    varying vec3 vC; varying float vA;
+    vec2 place(vec2 n, vec4 r) { return r.xy + n * r.zw; }
+    float ease(float x) { return x < .5 ? 4. * x * x * x : 1. - pow(-2. * x + 2., 3.) / 2.; }
+    void main() {
+      vec2 P0 = place(aP0, uR0), P1 = place(aP1, uR1), P2 = place(aP2, uR2), P3 = place(aP3, uR3);
+      float ang = aR.x * 6.2832, dist = (.35 + aR.y) * max(uRes.x, uRes.y) * .75;
+      vec2 P4 = P3 + vec2(cos(ang), sin(ang)) * dist;
+      vec3 ice = vec3(.78, .88, 1.) * (.65 + .55 * aR.z);
+      float T = clamp(uT, 0., 4.), seg = min(floor(T), 3.), f = T - seg;
+      vec2 A, B; vec3 CA, CB; float amp;
+      if (seg < .5)      { A = P0; B = P1; CA = aC0; CB = aC1; amp = 1.; }
+      else if (seg < 1.5){ A = P1; B = P2; CA = aC1; CB = ice; amp = .6; }
+      else if (seg < 2.5){ A = P2; B = P3; CA = ice; CB = ice * 1.15; amp = .45; }
+      else               { A = P3; B = P4; CA = ice * 1.15; CB = ice; amp = .25; }
+      float g = clamp((f - aR.w * .3) / .7, 0., 1.);   // staggered departure
+      float e = ease(g), s = sin(3.14159 * g);
+      vec2 pos = mix(A, B, e);
+      // in transit every particle rides a flow field → ribbons of light
+      float a = aR.x * 6.2832 + uTime * .35 + g * 5.;
+      vec2 flow = vec2(sin(pos.y * .006 + uTime * .7 + aR.z * 3.), cos(pos.x * .005 - uTime * .6 + aR.y * 3.));
+      pos += (vec2(cos(a), sin(a)) * (40. + aR.y * uRes.y * .32) + flow * 120.) * s * amp;
+      pos += vec2(sin(uTime * 1.3 + aR.x * 40.), cos(uTime * 1.1 + aR.y * 40.)) * 1.2;
+      vec2 d = pos - uMouse; float l = length(d);
+      if (l > .001) pos += d / l * max(0., 140. - l) * .5;  // the pointer parts the light
+      vC = mix(CA, CB, e) + s * amp * vec3(.22, .3, .45);
+      vA = uAlpha * (seg > 2.5 ? 1. - e : 1.);
+      gl_PointSize = uDpr * (1.5 + aR.z * 1.5) * (1. + s * amp * 1.3);
+      gl_Position = vec4(pos.x / uRes.x * 2. - 1., 1. - pos.y / uRes.y * 2., 0., 1.);
+    }`;
+  const FS = `
+    precision mediump float;
+    varying vec3 vC; varying float vA;
+    void main() {
+      float d = length(gl_PointCoord - .5);
+      float a = smoothstep(.5, 0., d) * vA;
+      gl_FragColor = vec4(vC * a, a);
+    }`;
+
+  function createParticles() {
+    const canvas = $('#particles');
+    const gl = canvas.getContext('webgl', { antialias: false, premultipliedAlpha: true, alpha: true });
+    if (!gl) return null;
+    const sh = (type, src) => { const o = gl.createShader(type); gl.shaderSource(o, src); gl.compileShader(o); if (!gl.getShaderParameter(o, gl.COMPILE_STATUS)) throw gl.getShaderInfoLog(o); return o; };
+    const prog = gl.createProgram();
+    gl.attachShader(prog, sh(gl.VERTEX_SHADER, VS)); gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, FS));
+    gl.linkProgram(prog);
+    if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw gl.getProgramInfoLog(prog);
+    gl.useProgram(prog);
+    gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE);
+
+    const N = innerWidth < 768 ? 16000 : 42000;
+    const U = {}; ['uRes', 'uMouse', 'uT', 'uTime', 'uAlpha', 'uDpr', 'uR0', 'uR1', 'uR2', 'uR3'].forEach(k => U[k] = gl.getUniformLocation(prog, k));
+    const bufs = {};
+    const attr = (name, size, data) => {
+      const loc = gl.getAttribLocation(prog, name);
+      if (!bufs[name]) bufs[name] = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, bufs[name]);
+      gl.bufferData(gl.ARRAY_BUFFER, data, gl.STATIC_DRAW);
+      gl.enableVertexAttribArray(loc);
+      gl.vertexAttribPointer(loc, size, gl.FLOAT, false, 0, 0);
+    };
+    const rnd = new Float32Array(N * 4).map(Math.random);
+    attr('aR', 4, rnd);
+    attr('aP2', 2, sampleLines(N));
+    attr('aP3', 2, sampleMark(N));
+    const zero2 = new Float32Array(N * 2), zero3 = new Float32Array(N * 3);
+    ['aP0', 'aP1'].forEach(k => attr(k, 2, zero2)); ['aC0', 'aC1'].forEach(k => attr(k, 3, zero3));
+
+    let ready = false, imgs = null;
+    const resample = () => {
+      if (!imgs) return;
+      const W = innerWidth, H = innerHeight, m = W < 768;
+      const hero = sampleImage(imgs[0], W * 1.06, H * 1.06, m ? .58 : .62, N, heroShade);
+      const about = sampleImage(imgs[1], W, H, m ? .42 : .62, N, aboutShade);
+      attr('aP0', 2, hero.pos); attr('aC0', 3, hero.col);
+      attr('aP1', 2, about.pos); attr('aC1', 3, about.col);
+      ready = true;
+    };
+    Promise.all([loadImg('assets/final.jpg'), loadImg(innerWidth < 768 ? 'assets/about-mobile.jpg?v=2' : 'assets/about.jpg?v=2')])
+      .then((r) => { imgs = r; resample(); }).catch(() => {});
+
+    let dpr = 1;
+    const size = () => {
+      dpr = Math.min(devicePixelRatio || 1, 1.75);
+      canvas.width = innerWidth * dpr; canvas.height = innerHeight * dpr;
+      gl.viewport(0, 0, canvas.width, canvas.height);
+    };
+    size();
+    let rt; addEventListener('resize', () => { size(); clearTimeout(rt); rt = setTimeout(resample, 250); });
+
+    const mouse = { x: -9999, y: -9999 };
+    addEventListener('pointermove', (e) => { mouse.x = e.clientX; mouse.y = e.clientY; }, { passive: true });
+
+    let cleared = true;
+    return {
+      draw(t, alpha, rects, time) {
+        if (!ready || alpha < .003) {
+          if (!cleared) { gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT); cleared = true; }
+          return;
+        }
+        cleared = false;
+        gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT);
+        gl.uniform2f(U.uRes, innerWidth, innerHeight);
+        gl.uniform2f(U.uMouse, mouse.x, mouse.y);
+        gl.uniform1f(U.uT, t); gl.uniform1f(U.uTime, time); gl.uniform1f(U.uAlpha, alpha); gl.uniform1f(U.uDpr, dpr);
+        rects.forEach((r, i) => gl.uniform4f(U['uR' + i], r[0], r[1], r[2], r[3]));
+        gl.drawArrays(gl.POINTS, 0, N);
+      }
+    };
+  }
+
+  function initScenes() {
+    let particles = null;
+    try { particles = createParticles(); } catch (err) { console.warn('particles off:', err); }
+    if (!particles) { $('#particles').remove(); return; }
+
+    const scenes = $('#scenes'), hero = $('.hero'), ui = $('#ui'), about = $('.about'), aboutImg = $('.about__media img');
+    const ticker = $('#ticker'), tickerBg = $('.ticker__bg'), tickerView = $('.ticker__viewport');
+    scenes.classList.add('is-staged');
+
+    // About copy is revealed by the director once the photo has formed
+    const words = window.SplitText ? SplitText.create('#aboutText', { type: 'words', wordsClass: 'w' }).words : ['#aboutText'];
+    const aboutTl = gsap.timeline({ paused: true, defaults: { ease: 'expo.out' } })
+      .from('.about__kicker', { opacity: 0, x: -16, duration: 1.1 })
+      .from('.about__title .l > span', { yPercent: 108, duration: 1.4, stagger: .1 }, .05)
+      .fromTo(words, { opacity: .12 }, { opacity: 1, duration: .9, stagger: .035, ease: 'power2.out' }, .45)
+      .fromTo('#facts', { '--rule': 0 }, { '--rule': 1, duration: 1.6, ease: 'power3.inOut' }, .6)
+      .from('.fact', { opacity: 0, y: 18, duration: 1.1, stagger: .09 }, .9);
+    let aboutShown = false;
+
+    pinST = ScrollTrigger.create({
+      trigger: scenes, start: 'top top', end: () => '+=' + innerHeight * 2.6,
+      pin: true, pinSpacing: true, anticipatePin: 1, refreshPriority: 1, invalidateOnRefresh: true
+    });
+    const st2 = ScrollTrigger.create({ trigger: ticker, start: 'top bottom', end: 'center center' });
+    const st3 = ScrollTrigger.create({ trigger: ticker, start: 'center center', end: () => '+=' + innerHeight * .95, invalidateOnRefresh: true });
+    const prog = (st, y) => st.end > st.start ? Math.min(Math.max((y - st.start) / (st.end - st.start), 0), 1) : 0;
+
+    gsap.ticker.add((time) => {
+      const y = lenis ? lenis.scroll : scrollY;
+      const p1 = prog(pinST, y), p2 = prog(st2, y), p3 = prog(st3, y);
+
+      // ── DOM side of the choreography
+      heroOp = 1 - sm(p1, .06, .16);
+      hero.style.opacity = heroOp;
+      hero.style.visibility = heroOp < .01 ? 'hidden' : '';
+      ui.style.opacity = 1 - sm(p1, 0, .08);
+      const aboutOp = sm(p1, .72, .86) * (1 - sm(p2, .02, .14));
+      about.style.opacity = aboutOp;
+      about.style.visibility = aboutOp < .01 ? 'hidden' : 'visible';
+      aboutImg.style.transform = `scale(${1.08 - .08 * sm(p1, .72, 1)})`;
+      if (p1 > .84 && !aboutShown) { aboutShown = true; aboutTl.timeScale(1).play(); }
+      else if (p1 < .78 && aboutShown) { aboutShown = false; aboutTl.timeScale(2).reverse(); }
+      const tIn = sm(p2, .8, .98);
+      tickerBg.style.opacity = tIn * (1 - .75 * sm(p3, .02, .12));
+      tickerView.style.opacity = tIn;
+
+      // ── particle side
+      let t, a;
+      if (p2 <= 0)      { t = sm(p1, .12, .78);                      a = sm(p1, .03, .12) * (1 - sm(p1, .8, .92)); }
+      else if (p3 <= 0) { t = 1 + sm(p2, .08, .85);                  a = sm(p2, 0, .1) * (1 - sm(p2, .85, 1)); }
+      else              { t = 2 + sm(p3, .06, .5) + sm(p3, .6, 1);   a = p3 >= 1 ? 0 : sm(p3, 0, .08); }
+
+      const sr = scenes.getBoundingClientRect(), tr = ticker.getBoundingClientRect();
+      const S = Math.min(innerWidth, innerHeight) * .46;
+      particles.draw(t, a, [
+        [sr.left - sr.width * .03, sr.top - sr.height * .03, sr.width * 1.06, sr.height * 1.06],
+        [sr.left, sr.top, sr.width, sr.height],
+        [tr.left, tr.top, tr.width, tr.height],
+        [(innerWidth - S) / 2, (innerHeight - S) / 2, S, S]
+      ], time);
+    });
+
+    ScrollTrigger.refresh();
+  }
+
   /* ═════════ Scroll choreography ═════════ */
   let scrollReady = false;
   function initScroll() {
     if (scrollReady || !window.ScrollTrigger || reduced) return;
     scrollReady = true;
-
-    // hero hands over to the work section — scrub with a little lag feels like a dolly move
-    const heroST = { trigger: '.hero', start: 'top top', end: 'bottom top', scrub: 1 };
-    gsap.to('#ui', { yPercent: -14, opacity: 0, ease: 'none', scrollTrigger: heroST });
-    gsap.to('#media', { yPercent: 22, ease: 'none', scrollTrigger: heroST });
-    gsap.to('#shade', { opacity: .2, ease: 'none', scrollTrigger: heroST });
-    gsap.fromTo('.media', { filter: 'brightness(1)' }, { filter: 'brightness(.35)', ease: 'none', scrollTrigger: heroST });
 
     // progress rail
     ScrollTrigger.create({
@@ -1334,28 +1588,7 @@
       lenis.on('scroll', ({ velocity }) => skew(gsap.utils.clamp(-3, 3, velocity * -.12)));
     }
 
-    // ── Slide 02: About arrives over the stage like the next card in a deck
-    gsap.fromTo('.about', { borderRadius: innerWidth < 768 ? '20px 20px 0 0' : '28px 28px 0 0' }, {
-      borderRadius: 0, ease: 'none',
-      scrollTrigger: { trigger: '.about', start: 'top bottom', end: 'top top', scrub: 1 }
-    });
-    gsap.fromTo('.about__media img', { scale: 1.22, yPercent: -6 }, {
-      scale: 1, yPercent: 6, ease: 'none',
-      scrollTrigger: { trigger: '.about', start: 'top bottom', end: 'bottom top', scrub: 1 }
-    });
-    gsap.timeline({ scrollTrigger: { trigger: '.about', start: 'top 55%' }, defaults: { ease: 'expo.out' } })
-      .from('.about__kicker', { opacity: 0, x: -16, duration: 1.1 })
-      .from('.about__title .l > span', { yPercent: 108, duration: 1.5, stagger: .1 }, .1);
-
-    const words = window.SplitText ? SplitText.create('#aboutText', { type: 'words', wordsClass: 'w' }).words : ['#aboutText'];
-    gsap.fromTo(words, { opacity: .14 }, {
-      opacity: 1, ease: 'none', stagger: .08,
-      scrollTrigger: { trigger: '#aboutText', start: 'top 82%', end: 'bottom 42%', scrub: 1 }
-    });
-
-    gsap.timeline({ scrollTrigger: { trigger: '#facts', start: 'top 92%' }, defaults: { ease: 'expo.out' } })
-      .fromTo('#facts', { '--rule': 0 }, { '--rule': 1, duration: 1.8, ease: 'power3.inOut' })
-      .from('.fact', { opacity: 0, y: 18, duration: 1.2, stagger: .1 }, .35);
+    initScenes();
 
     const title = window.SplitText ? SplitText.create('#workTitle', { type: 'chars,lines', mask: 'lines', linesClass: 'ln' }).chars : ['#workTitle'];
     const st = { trigger: '.work', start: 'top 72%' };
