@@ -8,7 +8,7 @@
 <meta name="theme-color" content="#04060a">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@200;300;400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600&family=Manrope:wght@200;300;400;500;600&display=swap" rel="stylesheet">
 <link rel="preload" as="image" href="assets/poster.jpg">
 <style>
   @property --a { syntax: '<angle>'; inherits: false; initial-value: 0deg; }
@@ -444,6 +444,76 @@
   .replay svg { width: 12px; height: 12px; transform: rotate(90deg); transition: transform .8s var(--ease-out); }
   .replay:hover svg { transform: rotate(-270deg); }
 
+  /* ───────────── Slide stack: About slides over the stage ───────────── */
+  .stack { position: relative; }
+  .stack > .hero { position: sticky; top: 0; }
+
+  .about {
+    position: relative; z-index: 1;
+    min-height: 100vh; min-height: 100svh;
+    background: #050608; overflow: hidden;
+    border-radius: 28px 28px 0 0;
+    box-shadow: 0 -30px 80px rgba(0,0,0,.65);
+  }
+  .about__media { position: absolute; inset: 0; overflow: hidden; }
+  .about__media img { width: 100%; height: 100%; object-fit: cover; object-position: 62% 50%; transform-origin: 70% 50%; will-change: transform; }
+  .about__shade {
+    position: absolute; inset: 0; pointer-events: none;
+    background:
+      linear-gradient(90deg, rgba(4,5,8,.95) 0%, rgba(4,5,8,.82) 30%, rgba(4,5,8,.35) 55%, rgba(4,5,8,0) 75%),
+      linear-gradient(0deg, rgba(4,5,8,.92) 0%, rgba(4,5,8,.5) 16%, rgba(4,5,8,0) 34%),
+      linear-gradient(180deg, rgba(4,5,8,.7) 0%, rgba(4,5,8,0) 22%);
+  }
+  .about__inner {
+    position: relative;
+    display: grid; grid-template-rows: auto 1fr auto; gap: clamp(28px, 5vh, 56px);
+    min-height: 100vh; min-height: 100svh;
+    padding: clamp(28px, 5vh, 48px) var(--gutter) clamp(28px, 5vh, 44px);
+  }
+  .about__kicker { font-size: 11px; letter-spacing: .3em; text-transform: uppercase; color: var(--ink-mute); }
+  .about__kicker b { font-weight: 500; color: var(--ink); }
+  .about__body { align-self: center; max-width: 640px; }
+  .about__title {
+    margin: 0 0 clamp(28px, 5vh, 52px);
+    font-family: "Barlow Condensed", "Manrope", sans-serif; font-weight: 600;
+    font-size: clamp(44px, 5.6vw, 92px); line-height: .98; letter-spacing: .004em;
+    text-transform: uppercase; color: #f3f5f8;
+  }
+  .about__title .l { display: block; overflow: hidden; padding-bottom: .04em; margin-bottom: -.04em; }
+  .about__title .l > span { display: block; }
+  .about__title .l--dim > span {
+    background: linear-gradient(90deg, #c9d0da 0%, #9aa3b0 100%);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .about__text { margin: 0; max-width: 31ch; font-size: clamp(18px, 1.55vw, 23px); line-height: 1.6; font-weight: 300; color: rgba(236,241,247,.86); }
+  .about__text .w { display: inline-block; }
+
+  .facts {
+    position: relative; margin: 0; padding-top: clamp(22px, 3.4vh, 36px);
+    display: grid; grid-template-columns: 1fr 1.3fr 1.3fr 1fr; gap: 24px;
+  }
+  .facts::before {
+    content: ""; position: absolute; left: 0; right: 0; top: 0; height: 1px;
+    background: linear-gradient(90deg, rgba(255,255,255,.5), rgba(255,255,255,.18));
+    transform-origin: left; transform: scaleX(var(--rule, 1));
+  }
+  .fact dt { margin-bottom: 8px; font-size: 12px; letter-spacing: .2em; text-transform: uppercase; color: rgba(226,234,243,.58); }
+  .fact dd { margin: 0; font-size: clamp(15px, 1.2vw, 18px); font-weight: 400; color: #eef2f7; }
+
+  @media (max-width: 900px) {
+    .facts { grid-template-columns: 1fr 1fr; row-gap: 22px; }
+  }
+  @media (max-width: 767px) {
+    .about { border-radius: 20px 20px 0 0; }
+    .about__media img { object-position: 42% 50%; }
+    .about__shade {
+      background:
+        linear-gradient(0deg, rgba(4,5,8,.96) 0%, rgba(4,5,8,.82) 45%, rgba(4,5,8,.35) 72%, rgba(4,5,8,.55) 100%);
+    }
+    .about__body { align-self: end; }
+    .about__title { font-size: clamp(40px, 12vw, 64px); }
+  }
+
   /* ───────────── Work ───────────── */
   .work { position: relative; padding: clamp(96px, 13vw, 180px) var(--gutter) clamp(80px, 10vw, 140px); background: var(--bg); }
   .work__head { display: flex; justify-content: space-between; align-items: end; gap: 24px; margin-bottom: clamp(40px, 5vw, 72px); }
@@ -550,7 +620,7 @@
 </style>
 </head>
 <body class="is-locked">
-<a class="skip-link" href="#main">Skip to content</a>
+<a class="skip-link" href="#about">Skip to content</a>
 
 <div class="progress" aria-hidden="true"><i id="progressBar"></i></div>
 
@@ -573,6 +643,7 @@
   <div class="cursor__dot" id="cursorDot"></div>
 </div>
 
+<div class="stack">
 <header class="hero" id="top">
   <div class="media" id="media" aria-hidden="true">
     <div class="media__stage" id="stage">
@@ -664,6 +735,36 @@
   </button>
 </header>
 
+<!-- ───── Slide 02 · About ───── -->
+<section class="about" id="about" aria-labelledby="aboutTitle">
+  <div class="about__media">
+    <picture>
+      <source media="(max-width: 767px)" srcset="assets/about-mobile.jpg">
+      <img src="assets/about.jpg" alt="Ridvan Ağgül at a grandMA3 console, running a night festival show" width="1672" height="941" loading="lazy">
+    </picture>
+  </div>
+  <div class="about__shade" aria-hidden="true"></div>
+  <div class="about__inner">
+    <span class="about__kicker"><b>02</b> — About</span>
+    <div class="about__body">
+      <h2 class="about__title" id="aboutTitle">
+        <span class="l"><span>Light is not</span></span>
+        <span class="l"><span>decoration.</span></span>
+        <span class="l l--dim"><span>It is part of</span></span>
+        <span class="l l--dim"><span>the performance.</span></span>
+      </h2>
+      <p class="about__text" id="aboutText">Lighting shapes how the audience feels a show. The goal is to create a visual language that works together with music, stage architecture and live energy.</p>
+    </div>
+    <dl class="facts" id="facts">
+      <div class="fact"><dt>Base</dt><dd>Antalya · Türkiye</dd></div>
+      <div class="fact"><dt>Focus</dt><dd>Concerts · Festivals · Live Shows</dd></div>
+      <div class="fact"><dt>Role</dt><dd>Lighting Designer / Programmer</dd></div>
+      <div class="fact"><dt>Console</dt><dd>grandMA3</dd></div>
+    </dl>
+  </div>
+</section>
+</div>
+
 <main id="main">
   <section class="work" id="work" aria-labelledby="workTitle">
     <div class="work__head">
@@ -702,7 +803,7 @@
   </section>
 
   <footer class="site-foot" id="contact">
-    <span id="about">© 2026 Ridvan Ağgül — Lighting & Show Design</span>
+    <span>© 2026 Ridvan Ağgül — Lighting & Show Design</span>
     <a href="mailto:hello@example.com">hello@example.com</a>
   </footer>
 </main>
@@ -1120,6 +1221,29 @@
       const skew = gsap.quickTo('.grid', 'skewY', { duration: .6, ease: 'power3' });
       lenis.on('scroll', ({ velocity }) => skew(gsap.utils.clamp(-3, 3, velocity * -.12)));
     }
+
+    // ── Slide 02: About arrives over the stage like the next card in a deck
+    gsap.fromTo('.about', { borderRadius: innerWidth < 768 ? '20px 20px 0 0' : '28px 28px 0 0' }, {
+      borderRadius: 0, ease: 'none',
+      scrollTrigger: { trigger: '.about', start: 'top bottom', end: 'top top', scrub: 1 }
+    });
+    gsap.fromTo('.about__media img', { scale: 1.22, yPercent: -6 }, {
+      scale: 1, yPercent: 6, ease: 'none',
+      scrollTrigger: { trigger: '.about', start: 'top bottom', end: 'bottom top', scrub: 1 }
+    });
+    gsap.timeline({ scrollTrigger: { trigger: '.about', start: 'top 55%' }, defaults: { ease: 'expo.out' } })
+      .from('.about__kicker', { opacity: 0, x: -16, duration: 1.1 })
+      .from('.about__title .l > span', { yPercent: 108, duration: 1.5, stagger: .1 }, .1);
+
+    const words = window.SplitText ? SplitText.create('#aboutText', { type: 'words', wordsClass: 'w' }).words : ['#aboutText'];
+    gsap.fromTo(words, { opacity: .14 }, {
+      opacity: 1, ease: 'none', stagger: .08,
+      scrollTrigger: { trigger: '#aboutText', start: 'top 82%', end: 'bottom 42%', scrub: 1 }
+    });
+
+    gsap.timeline({ scrollTrigger: { trigger: '#facts', start: 'top 92%' }, defaults: { ease: 'expo.out' } })
+      .fromTo('#facts', { '--rule': 0 }, { '--rule': 1, duration: 1.8, ease: 'power3.inOut' })
+      .from('.fact', { opacity: 0, y: 18, duration: 1.2, stagger: .1 }, .35);
 
     const title = window.SplitText ? SplitText.create('#workTitle', { type: 'chars,lines', mask: 'lines', linesClass: 'ln' }).chars : ['#workTitle'];
     const st = { trigger: '.work', start: 'top 72%' };
