@@ -450,6 +450,21 @@
   .scenes.is-staged { height: 100vh; height: 100svh; overflow: hidden; }
   .scenes.is-staged .about { position: absolute; inset: 0; opacity: 0; visibility: hidden; }
   .particles { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 45; pointer-events: none; }
+  .curtain { position: fixed; inset: 0; z-index: 950; background: var(--bg); opacity: 0; pointer-events: none; }
+
+  /* chapter readout beside the progress rail */
+  .chapter {
+    position: fixed; right: 22px; bottom: 24px; z-index: 46; pointer-events: none;
+    display: flex; align-items: center; gap: 12px;
+    font-size: 11px; letter-spacing: .28em; text-transform: uppercase; color: var(--ink-soft);
+    opacity: 0; transform: translateY(8px); transition: opacity .6s, transform .8s var(--ease-out);
+  }
+  .is-scrolled .chapter { opacity: 1; transform: none; }
+  .chapter__n, .chapter__t { display: block; overflow: hidden; height: 1.3em; line-height: 1.3em; }
+  .chapter i { display: block; font-style: normal; }
+  .chapter__n { color: #fff; font-weight: 500; font-variant-numeric: tabular-nums; }
+  .chapter__rule { width: 28px; height: 1px; background: var(--line-strong); }
+  @media (max-width: 767px) { .chapter { right: 16px; bottom: 16px; font-size: 10px; } }
 
   .about {
     position: relative; z-index: 1;
@@ -511,7 +526,12 @@
         linear-gradient(0deg, rgba(4,5,8,.96) 0%, rgba(4,5,8,.82) 45%, rgba(4,5,8,.35) 72%, rgba(4,5,8,.55) 100%);
     }
     .about__body { align-self: end; }
-    .about__title { font-size: clamp(40px, 12vw, 64px); }
+    .about__title { font-size: clamp(34px, 10vw, 56px); margin-bottom: 18px; }
+    .about__text { font-size: 16px; line-height: 1.55; }
+    .about__inner { gap: 18px; padding-top: 22px; padding-bottom: 22px; }
+    .facts { gap: 14px 18px; padding-top: 16px; }
+    .fact dt { margin-bottom: 4px; font-size: 10px; }
+    .fact dd { font-size: 14px; }
   }
 
   /* ───────────── Ticker ───────────── */
@@ -659,6 +679,10 @@
 
 <div class="progress" aria-hidden="true"><i id="progressBar"></i></div>
 <canvas class="particles" id="particles" aria-hidden="true"></canvas>
+<div class="curtain" id="curtain" aria-hidden="true"></div>
+<div class="chapter" id="chapter" aria-hidden="true">
+  <span class="chapter__n"><i id="chapterN">01</i></span><span class="chapter__rule"></span><span class="chapter__t"><i id="chapterT">Stage</i></span>
+</div>
 
 <div class="loader" id="loader">
   <div class="loader__inner">
@@ -761,7 +785,7 @@
         <li data-reveal><a href="#work">Programming</a></li>
         <li data-reveal><a href="#work">Complete shows</a></li>
       </ul>
-      <a class="scroll-cue" href="#work" data-reveal>Scroll <span aria-hidden="true"></span></a>
+      <a class="scroll-cue" href="#about" data-reveal>Scroll <span aria-hidden="true"></span></a>
     </div>
   </div>
 
@@ -910,6 +934,7 @@
   if (hasGsap) {
     window.SplitText && gsap.registerPlugin(SplitText);
     window.ScrollTrigger && gsap.registerPlugin(ScrollTrigger);
+    window.ScrollTrigger && ScrollTrigger.config({ ignoreMobileResize: true });
   }
 
   /* ═════════ Smooth scroll: Lenis driven by the GSAP ticker ═════════ */
@@ -924,9 +949,18 @@
   let pinST = null; // the pinned hero/About frame, set up after the reveal
   const lockScroll = () => { body.classList.add('is-locked'); lenis?.stop(); };
   const unlockScroll = () => { body.classList.remove('is-locked'); lenis?.start(); };
+  let sceneSnap = false; // tells the particle director to jump rather than trail after a cut
+  const easeGlide = (t) => (t < .5 ? 16 * t ** 5 : 1 - Math.pow(-2 * t + 2, 5) / 2);
   const scrollToTarget = (target) => {
-    if (lenis) lenis.scrollTo(target, { duration: 1.8, easing: (t) => (t < .5 ? 16 * t ** 5 : 1 - Math.pow(-2 * t + 2, 5) / 2) });
-    else (typeof target === 'number' ? scrollTo({ top: target, behavior: 'smooth' }) : $(target)?.scrollIntoView({ behavior: 'smooth' }));
+    const cur = lenis ? lenis.scroll : scrollY;
+    const dest = typeof target === 'number' ? target : target.getBoundingClientRect().top + cur;
+    if (!lenis) { scrollTo({ top: dest, behavior: reduced ? 'auto' : 'smooth' }); return; }
+    if (Math.abs(dest - cur) < innerHeight * 1.6) { lenis.scrollTo(dest, { duration: 1.8, easing: easeGlide }); return; }
+    gsap.to('#curtain', { opacity: 1, duration: .45, ease: 'power2.in', onComplete() {
+      lenis.scrollTo(dest, { immediate: true, force: true });
+      sceneSnap = true;
+      gsap.to('#curtain', { opacity: 0, duration: .9, delay: .12, ease: 'power2.out' });
+    } });
   };
   // every in-page link glides instead of jumping
   document.addEventListener('click', (e) => {
@@ -1026,7 +1060,6 @@
     if (revealed) return;
     revealed = true;
     root.classList.add('is-revealed');
-    unlockScroll();
 
     if (!hasGsap) {
       $$('.btn__frame rect').forEach(r => r.style.strokeDashoffset = 0);
@@ -1063,11 +1096,11 @@
     });
   }
 
-  let ambientStarted = false;
+  let ambientStarted = false, stageTween = null;
   function startAmbient() {
     if (ambientStarted || reduced) return;
     ambientStarted = true;
-    gsap.fromTo(stage, { scale: 1 }, { scale: 1.045, duration: 24, ease: 'sine.inOut', yoyo: true, repeat: -1 });
+    stageTween = gsap.fromTo(stage, { scale: 1 }, { scale: 1.045, duration: 24, ease: 'sine.inOut', yoyo: true, repeat: -1 });
 
     if (!finePointer) return;
     const hero = $('.hero');
@@ -1301,6 +1334,13 @@
   const lasers = hasGsap ? createLasers() : null;
   // fixtures are mapped to the final frame, so the lasers fire once the camera has landed
   let lasersLit = false;
+  let landedOnce = false;
+  function landed() { // the film is over: open the page and switch the lasers on
+    if (landedOnce) return;
+    landedOnce = true;
+    unlockScroll();
+    lightLasers();
+  }
   function lightLasers() {
     if (!lasers || lasersLit) return;
     lasersLit = true;
@@ -1475,7 +1515,14 @@
       gl.viewport(0, 0, canvas.width, canvas.height);
     };
     size();
-    let rt; addEventListener('resize', () => { size(); clearTimeout(rt); rt = setTimeout(resample, 250); });
+    let rt, sw = innerWidth, shh = innerHeight;
+    addEventListener('resize', () => {
+      size();
+      // phone toolbars change the height by a few % while scrolling — not worth a resample
+      if (innerWidth === sw && Math.abs(innerHeight - shh) / shh < .18) return;
+      sw = innerWidth; shh = innerHeight;
+      clearTimeout(rt); rt = setTimeout(resample, 250);
+    });
 
     const mouse = { x: -9999, y: -9999 };
     addEventListener('pointermove', (e) => { mouse.x = e.clientX; mouse.y = e.clientY; }, { passive: true });
@@ -1531,12 +1578,32 @@
     // phase 2 = approach + first third of the ticker pin; phase 3 = last half of it (a hold sits between)
     const span = (y, a, b) => b > a ? clamp01((y - a) / (b - a)) : 0;
 
+    // write a style only when it actually changes — keeps the frame free of needless recalcs
+    const cache = new WeakMap();
+    const put = (el, prop, v) => {
+      const val = typeof v === 'number' ? v.toFixed(3) : v;
+      let c = cache.get(el); if (!c) cache.set(el, c = {});
+      if (c[prop] !== val) { c[prop] = val; el.style[prop] = val; }
+    };
+
+    const CHAPTERS = [['01', 'Stage'], ['02', 'About'], ['03', 'Craft'], ['04', 'Work']];
+    let chapter = 0;
+    const setChapter = (i) => {
+      const dir = i > chapter ? 1 : -1; chapter = i;
+      const n = $('#chapterN'), tt = $('#chapterT');
+      gsap.to([n, tt], { yPercent: -100 * dir, opacity: 0, duration: .25, ease: 'power2.in', overwrite: true, onComplete() {
+        n.textContent = CHAPTERS[i][0]; tt.textContent = CHAPTERS[i][1];
+        gsap.fromTo([n, tt], { yPercent: 100 * dir, opacity: 0 }, { yPercent: 0, opacity: 1, duration: .6, ease: 'expo.out', stagger: .05 });
+      } });
+    };
+
     // particles trail the scroll with weight, so a hard flick never skips a transition
     let sy = lenis ? lenis.scroll : scrollY, last = performance.now();
 
     gsap.ticker.add((time) => {
       const now = performance.now(), dt = Math.min((now - last) / 1000, .1); last = now;
       const target = lenis ? lenis.scroll : scrollY;
+      if (sceneSnap) { sy = target; sceneSnap = false; }
       sy += (target - sy) * (1 - Math.exp(-dt * 5));
       if (Math.abs(target - sy) < .5) sy = target;
       const y = sy;
@@ -1547,18 +1614,23 @@
 
       // ── DOM side of the choreography
       heroOp = 1 - sm(p1, .06, .16);
-      hero.style.opacity = heroOp;
-      hero.style.visibility = heroOp < .01 ? 'hidden' : '';
-      ui.style.opacity = 1 - sm(p1, 0, .08);
+      put(hero, 'opacity', heroOp);
+      put(hero, 'visibility', heroOp < .01 ? 'hidden' : 'visible');
+      if (stageTween) heroOp < .01 ? stageTween.pause() : stageTween.resume();
+      put(ui, 'opacity', 1 - sm(p1, 0, .08));
       const aboutOp = sm(p1, .66, .78) * (1 - sm(p2, .02, .14));
-      about.style.opacity = aboutOp;
-      about.style.visibility = aboutOp < .01 ? 'hidden' : 'visible';
-      aboutImg.style.transform = `scale(${1.08 - .08 * sm(p1, .66, 1)})`;
+      put(about, 'opacity', aboutOp);
+      put(about, 'visibility', aboutOp < .01 ? 'hidden' : 'visible');
+      put(aboutImg, 'transform', `scale(${(1.08 - .08 * sm(p1, .66, 1)).toFixed(4)})`);
       if (p1 > .76 && !aboutShown) { aboutShown = true; aboutTl.timeScale(1).play(); }
       else if (p1 < .7 && aboutShown) { aboutShown = false; aboutTl.timeScale(2).reverse(); }
-      const tIn = sm(p2, .8, .98);
-      tickerBg.style.opacity = tIn * (1 - .75 * sm(p3, .02, .12));
-      tickerView.style.opacity = tIn;
+      // the band steps aside while its lines fold into the mark, then settles back
+      const tIn = sm(p2, .8, .98), tAway = sm(p3, .02, .12) * (1 - sm(p3, .86, 1));
+      put(tickerBg, 'opacity', tIn * (1 - .8 * tAway));
+      put(tickerView, 'opacity', tIn * (1 - tAway));
+
+      const ch = p1 < .7 ? 0 : p2 < .5 ? 1 : p3 < .9 ? 2 : 3;
+      if (ch !== chapter) setChapter(ch);
 
       // ── particle side
       let t, a;
@@ -1649,20 +1721,30 @@
 
   function showFinalStill() {
     finalFrame.style.opacity = 1;
-    lightLasers();
+    landed();
     if (hasGsap) gsap.to(video, { opacity: 0, duration: 1.2, ease: 'power2.inOut' });
     else video.style.opacity = 0;
   }
 
-  video.addEventListener('ended', () => { finalFrame.style.opacity = 1; reveal(); lightLasers(); });
+  video.addEventListener('ended', () => { finalFrame.style.opacity = 1; reveal(); landed(); });
+  // the UI arrives a few seconds before the film ends — a scroll attempt in that window
+  // simply lands the camera instead of feeling stuck
+  const landOnIntent = (e) => {
+    if (!revealed || landedOnce) return;
+    if (e.type === 'keydown' && !['ArrowDown', 'PageDown', ' ', 'End'].includes(e.key)) return;
+    skip();
+  };
+  ['wheel', 'touchmove', 'keydown'].forEach(t => addEventListener(t, landOnIntent, { passive: true }));
 
   function skip() {
+    if (skipped) return; skipped = true;
     if (hasGsap && !video.muted) gsap.to(video, { volume: 0, duration: .6, onComplete: () => video.pause() });
     else video.pause();
     showFinalStill(); reveal();
   }
   $('#skipIntro').addEventListener('click', skip);
   addEventListener('keydown', (e) => { if (!revealed && !$('#loader') && (e.key === 'Escape' || e.key === ' ')) { e.preventDefault(); skip(); } });
+  let skipped = false;
 
   function fadeVolume(to, d = 1.2) {
     if (!hasGsap) { video.volume = to; return; }
@@ -1726,7 +1808,7 @@
     $('#loader').remove();
     $('#bars').style.display = 'none';
     reveal({ instant: true });
-    lightLasers();
+    landed();
   } else {
     let started = false;
     const begin = () => { if (!started) { started = true; showGate(); } };
