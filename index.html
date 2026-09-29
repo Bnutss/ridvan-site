@@ -95,41 +95,10 @@
   .cursor.is-label .cursor__label { opacity: 1; transform: none; }
   .cursor.is-hover .cursor__dot, .cursor.is-label .cursor__dot { opacity: 0; }
 
-  /* ───────────── Followspot ─────────────
-     Lives inside the footage, under the shade and the UI, so it lights the stage —
-     not the text. The pool brightens what is already there (soft-light + color-dodge)
-     instead of painting white on top; the beam is only faint haze. */
-  .lamp { position: absolute; inset: 0; pointer-events: none; opacity: 0; overflow: hidden; }
-  .lamp__pool, .lamp__hot { position: absolute; left: 0; top: 0; border-radius: 50%; will-change: transform; }
-  .lamp__pool {
-    width: 620px; height: 560px; margin: -280px 0 0 -310px;
-    mix-blend-mode: soft-light;
-    background: radial-gradient(closest-side, rgba(255,255,255,.8) 0%, rgba(250,252,255,.66) 42%, rgba(240,246,255,.25) 64%, transparent 82%);
-  }
-  .lamp__hot {
-    width: 380px; height: 340px; margin: -170px 0 0 -190px;
-    mix-blend-mode: color-dodge;
-    background: radial-gradient(closest-side, rgba(96,108,128,.62) 0%, rgba(80,92,112,.4) 45%, transparent 100%);
-  }
-  .lamp__beam {
-    position: absolute; left: 0; top: 0;
-    width: 560px; height: 1400px;
-    transform-origin: 50% 0;
-    mix-blend-mode: screen;
-    clip-path: polygon(47% 0, 53% 0, 100% 100%, 0 100%);
-    -webkit-mask-image: linear-gradient(180deg, transparent 0%, #000 12%, #000 70%, transparent 100%);
-            mask-image: linear-gradient(180deg, transparent 0%, #000 12%, #000 70%, transparent 100%);
-    background: linear-gradient(90deg, transparent 8%, rgba(214,226,242,.07) 30%, rgba(228,236,248,.12) 50%, rgba(214,226,242,.07) 70%, transparent 92%);
-    filter: blur(10px);
-    will-change: transform;
-  }
-  .lamp__haze { /* drifting smoke inside the beam */
-    position: absolute; inset: 0; opacity: .5; mix-blend-mode: overlay;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400'%3E%3Cfilter id='f'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.012 .006' numOctaves='3' seed='4'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .9 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23f)'/%3E%3C/svg%3E");
-    background-size: 400px 400px;
-    animation: haze 26s linear infinite;
-  }
-  @keyframes haze { to { background-position: 400px -800px; } }
+  /* ───────────── Lasers ─────────────
+     Drawn on a canvas inside the footage (under the shade and UI), from the
+     real fixtures on the stage lip, so the beams belong to the scene. */
+  .lasers { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; opacity: 0; mix-blend-mode: screen; }
 
   /* ───────────── Smooth scroll (Lenis) ───────────── */
   html.lenis, html.lenis body { height: auto; }
@@ -329,107 +298,78 @@
 
   .ctas { display: grid; gap: 16px; }
 
-  /* ═════════ Signature buttons ═════════ */
+  /* ═════════ Signature buttons ═════════
+     Hairline outline on a clear dark tint — no frosted grey. Primary floods with
+     light from the pointer's entry point; secondary gets a laser running the frame. */
   .btn {
-    --mx: 50%; --my: 50%; --fx: 0px; --fy: 0px;
+    --fx: 0px; --fy: 0px;
     position: relative;
     display: inline-flex; align-items: center; justify-content: space-between; gap: 20px;
-    width: 264px; min-height: 58px; padding: 0 12px 0 26px;
+    width: 268px; min-height: 58px; padding: 0 10px 0 26px;
     border-radius: var(--radius);
     font-size: 12px; font-weight: 500; letter-spacing: .26em; text-transform: uppercase;
-    color: var(--ink);
+    color: #f2f6fb;
     isolation: isolate;
     transition: color .5s var(--ease-out), transform .5s var(--ease-out);
     -webkit-tap-highlight-color: transparent;
     touch-action: manipulation;
   }
-  .btn__clip { position: absolute; inset: 0; border-radius: inherit; overflow: hidden; z-index: -1; }
-  .btn__bg {
-    position: absolute; inset: 0; border-radius: inherit;
-    background: linear-gradient(180deg, rgba(220,234,252,.08), rgba(200,220,245,.03));
-    -webkit-backdrop-filter: blur(16px) saturate(1.3); backdrop-filter: blur(16px) saturate(1.3);
-    box-shadow: inset 0 1px 0 rgba(255,255,255,.1), inset 0 -1px 0 rgba(255,255,255,.03);
-    transition: background .5s;
-  }
-  /* light that follows the pointer inside the glass */
-  .btn__glow {
-    position: absolute; inset: 0; opacity: 0; transition: opacity .5s;
-    background: radial-gradient(160px circle at var(--mx) var(--my), rgba(220,236,255,.28), transparent 60%);
-  }
-  /* primary: a disc of light floods the button from where the cursor entered */
+  .btn__clip { position: absolute; inset: 0; border-radius: inherit; overflow: hidden; z-index: -1; transform: translateZ(0); }
+  .btn__bg { position: absolute; inset: 0; background: rgba(3,6,10,.32); transition: background .5s; }
   .btn__fill {
     position: absolute; left: var(--fx); top: var(--fy);
-    width: 620px; height: 620px; margin: -310px 0 0 -310px; border-radius: 50%;
-    background: radial-gradient(circle, #ffffff 0%, #eef5ff 35%, #cfe1ff 70%);
-    transform: scale(0); transition: transform .8s var(--ease-out);
+    width: 640px; height: 640px; margin: -320px 0 0 -320px; border-radius: 50%;
+    background: #f3f7fc;
+    transform: scale(0); transition: transform .85s var(--ease-out);
   }
-  .btn__sweep {
-    position: absolute; top: -10%; bottom: -10%; left: 0; width: 40%;
-    background: linear-gradient(100deg, transparent 0%, rgba(225,238,255,.45) 50%, transparent 100%);
-    transform: translateX(-160%) skewX(-18deg);
-    filter: blur(2px);
+  .btn__sweep { /* single crisp glint used on reveal and as an idle cue */
+    position: absolute; top: -20%; bottom: -20%; left: 0; width: 22%;
+    background: linear-gradient(100deg, transparent 0%, rgba(255,255,255,.28) 50%, transparent 100%);
+    transform: translateX(-160%) skewX(-20deg);
   }
-  /* drawn frame */
   .btn__frame { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; z-index: 1; }
   .btn__frame rect {
-    fill: none; stroke: var(--line-strong); stroke-width: 1;
+    fill: none; stroke: rgba(240,245,252,.6); stroke-width: 1;
     stroke-dasharray: 1; stroke-dashoffset: 1;
     vector-effect: non-scaling-stroke; transition: stroke .5s;
   }
-  /* chasing light around the border */
-  .btn__chase {
-    position: absolute; inset: -1px; border-radius: inherit; padding: 1.5px; z-index: 2; pointer-events: none;
-    background: conic-gradient(from var(--a), transparent 0 58%, rgba(190,215,255,.35) 70%, #fff 80%, rgba(190,215,255,.35) 88%, transparent 94%);
+  .btn__chase { /* a laser dot travelling the frame */
+    position: absolute; inset: -.5px; border-radius: inherit; padding: 1.5px; z-index: 2; pointer-events: none;
+    background: conic-gradient(from var(--a), transparent 0 72%, rgba(170,205,255,.6) 84%, #fff 90%, transparent 91%);
     -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
     -webkit-mask-composite: xor; mask-composite: exclude;
-    opacity: 0; transition: opacity .5s;
-    filter: drop-shadow(0 0 4px rgba(200,225,255,.9));
+    opacity: 0; transition: opacity .4s;
   }
-  /* bloom under the button */
-  .btn::after {
-    content: ""; position: absolute; inset: 20% 8% -30%; z-index: -2; border-radius: 50%;
-    background: radial-gradient(closest-side, rgba(190,215,255,.45), transparent);
-    filter: blur(18px); opacity: 0; transition: opacity .6s;
-  }
-
   .btn__label { position: relative; z-index: 3; }
   .btn__icon {
     position: relative; z-index: 3;
     display: grid; place-items: center; flex: none;
-    width: 36px; height: 36px; border-radius: 50%;
-    border: 1px solid var(--line);
+    width: 38px; height: 38px; border-radius: 50%;
+    border: 1px solid rgba(240,245,252,.4);
     transition: transform .7s var(--ease-out), border-color .5s, background .5s, color .5s;
   }
   .btn__icon svg { width: 13px; height: 13px; transition: transform .7s var(--ease-out); }
-  .btn__icon::before { /* pulsing ring on the play icon */
-    content: ""; position: absolute; inset: -1px; border-radius: 50%; border: 1px solid rgba(220,235,255,.6);
-    opacity: 0;
+  .btn__icon::before {
+    content: ""; position: absolute; inset: -1px; border-radius: 50%; border: 1px solid rgba(240,245,252,.55); opacity: 0;
   }
   .btn--primary .btn__icon::before { animation: ping 2.8s var(--ease-out) infinite; }
-  @keyframes ping { 0% { transform: scale(1); opacity: .7; } 70%, 100% { transform: scale(1.7); opacity: 0; } }
+  @keyframes ping { 0% { transform: scale(1); opacity: .6; } 70%, 100% { transform: scale(1.7); opacity: 0; } }
 
-  /* hover states */
-  .btn:hover .btn__glow { opacity: 1; }
-  .btn:hover .btn__chase { opacity: 1; animation: chase 2.6s linear infinite; }
-  .btn:hover::after { opacity: 1; }
-  .btn:hover .btn__frame rect { stroke: rgba(245,249,255,.95); }
-  .btn:hover .btn__sweep { animation: sweep 1.1s var(--ease-out); }
-  @keyframes chase { to { --a: 360deg; } }
-  @keyframes sweep { from { transform: translateX(-160%) skewX(-18deg); } to { transform: translateX(360%) skewX(-18deg); } }
-
+  .btn:hover .btn__frame rect { stroke: #fff; }
   .btn--primary:hover { color: var(--on-light); }
   .btn--primary:hover .btn__fill { transform: scale(1); }
-  .btn--primary:hover .btn__icon { background: var(--on-light); border-color: var(--on-light); color: #fff; transform: scale(1.06); }
+  .btn--primary:hover .btn__icon { background: var(--on-light); border-color: var(--on-light); color: #fff; }
+  .btn--primary:hover .btn__icon::before { animation: none; }
   .btn--primary:hover .btn__icon svg { transform: translateX(1px) scale(1.08); }
-  .btn--primary:hover .btn__chase { opacity: 0; }
 
-  .btn--ghost:hover .btn__bg { background: linear-gradient(180deg, rgba(220,234,252,.14), rgba(200,220,245,.06)); }
-  .btn--ghost:hover .btn__icon { border-color: rgba(255,255,255,.8); background: rgba(255,255,255,.08); }
+  .btn--ghost:hover .btn__bg { background: rgba(3,6,10,.5); }
+  .btn--ghost:hover .btn__chase { opacity: 1; animation: chase 2.2s linear infinite; }
+  .btn--ghost:hover .btn__icon { border-color: #fff; background: #fff; color: var(--on-light); }
   .btn--ghost:hover .btn__icon svg { animation: drop .9s var(--ease-out); }
+  @keyframes chase { to { --a: 360deg; } }
   @keyframes drop { 0% { transform: none; } 45% { transform: translateY(140%); opacity: 0; } 46% { transform: translateY(-140%); opacity: 0; } 100% { transform: none; opacity: 1; } }
 
   .btn:active { transform: scale(.975); }
-  .btn:active .btn__bg { background: rgba(230,240,255,.2); }
 
   .pillars {
     position: relative; margin: 0; padding: 4px 0 4px 20px; list-style: none;
@@ -602,8 +542,8 @@
   @media (max-width: 480px) { .grid { grid-template-columns: 1fr; } }
 
   @media (prefers-reduced-motion: reduce) {
-    .lamp__haze, .eq i, .grain, .scroll-cue span::after, .brand__name.is-lit, .btn--primary .btn__icon::before { animation: none; }
-    .btn:hover .btn__sweep, .btn:hover .btn__chase, .btn--ghost:hover .btn__icon svg { animation: none; }
+    .eq i, .grain, .scroll-cue span::after, .brand__name.is-lit, .btn--primary .btn__icon::before { animation: none; }
+    .btn:hover .btn__chase, .btn--ghost:hover .btn__icon svg { animation: none; }
     .roll__c { transition: none; }
     .bars { display: none; }
   }
@@ -638,11 +578,7 @@
     <div class="media__stage" id="stage">
       <img class="media__final" id="finalFrame" src="assets/final.jpg" alt="" width="1664" height="1248">
       <video id="heroVideo" muted playsinline preload="auto" poster="assets/poster.jpg"></video>
-    </div>
-    <div class="lamp" id="lamp">
-      <div class="lamp__beam" id="beam"><span class="lamp__haze"></span></div>
-      <div class="lamp__pool" id="pool"></div>
-      <div class="lamp__hot" id="hot"></div>
+      <canvas class="lasers" id="lasers"></canvas>
     </div>
   </div>
 
@@ -686,14 +622,14 @@
 
       <div class="ctas">
         <button class="btn btn--primary roll-host" id="openReel" type="button" data-reveal data-cursor="Play">
-          <span class="btn__clip"><span class="btn__bg"></span><span class="btn__glow"></span><span class="btn__fill"></span><span class="btn__sweep"></span></span>
+          <span class="btn__clip"><span class="btn__bg"></span><span class="btn__fill"></span><span class="btn__sweep"></span></span>
           <svg class="btn__frame" aria-hidden="true"><rect x="0" y="0" width="100%" height="100%" rx="16" ry="16" pathLength="1"/></svg>
           <span class="btn__chase" aria-hidden="true"></span>
           <span class="btn__label" data-roll>View showreel</span>
           <span class="btn__icon" aria-hidden="true"><svg viewBox="0 0 14 14" fill="currentColor"><path d="M3.5 1.6v10.8L12.2 7z"/></svg></span>
         </button>
         <a class="btn btn--ghost roll-host" href="#work" data-reveal>
-          <span class="btn__clip"><span class="btn__bg"></span><span class="btn__glow"></span><span class="btn__sweep"></span></span>
+          <span class="btn__clip"><span class="btn__bg"></span><span class="btn__sweep"></span></span>
           <svg class="btn__frame" aria-hidden="true"><rect x="0" y="0" width="100%" height="100%" rx="16" ry="16" pathLength="1"/></svg>
           <span class="btn__chase" aria-hidden="true"></span>
           <span class="btn__label" data-roll>Selected work</span>
@@ -885,7 +821,6 @@
         { textShadow: '0 0 36px rgba(200,225,255,.9)', duration: .5, stagger: .055, yoyo: true, repeat: 1, ease: 'power2.out' }, .55)
 
       // the followspot powers up
-      .to('#lamp', { opacity: 1, duration: 2.6, ease: 'power2.inOut' }, .4)
 
       .from('.nav li', { y: -18, opacity: 0, duration: 1.2, stagger: .09 }, .8)
       .from('.role i', { yPercent: 115, duration: 1.3, stagger: .12 }, 1.0)
@@ -1014,46 +949,145 @@
     });
   }
 
-  /* ═════════ Followspot ═════════
-     An operator-driven spot: it trails the pointer with weight, parks on the
-     stage when the pointer leaves, and on touch screens slowly sweeps by itself. */
-  function initLamp() {
-    if (!hasGsap) return;
-    const media = $('#media'), hero = $('.hero');
-    const pool = $('#pool'), hot = $('#hot'), beam = $('#beam');
-    const rest = () => ({ x: media.clientWidth * .66, y: media.clientHeight * .6 });
+  /* ═════════ Lasers ═════════ */
+  function createLasers() {
+    const canvas = $('#lasers');
+    const ctx = canvas.getContext('2d');
+    const box = stage; // canvas lives inside the stage, so it inherits its zoom/parallax
+    const IMG = { w: 1664, h: 1248 };
+    // laser fixtures on the stage lip of the final frame (image pixels)
+    const FIXTURES = [[410, 786], [537, 772], [708, 771], [969, 752], [1137, 774], [1330, 782], [1418, 779]];
+    const CORE = '240,247,255', GLOW = '120,170,255';
 
-    const qp = { x: gsap.quickTo(pool, 'x', { duration: .9, ease: 'power3' }), y: gsap.quickTo(pool, 'y', { duration: .9, ease: 'power3' }) };
-    const qh = { x: gsap.quickTo(hot, 'x', { duration: .75, ease: 'power3' }), y: gsap.quickTo(hot, 'y', { duration: .75, ease: 'power3' }) };
-    const aim = (x, y) => { qp.x(x); qp.y(y); qh.x(x); qh.y(y); };
-    const r0 = rest(); gsap.set([pool, hot], { x: r0.x, y: r0.y });
+    let W = 0, H = 0, dpr = 1, emit = [];
+    function layout() {
+      dpr = Math.min(devicePixelRatio || 1, 2);
+      W = box.offsetWidth; H = box.offsetHeight;
+      canvas.width = W * dpr; canvas.height = H * dpr;
+      const s = Math.max(W / IMG.w, H / IMG.h);
+      const ox = (W - IMG.w * s) * (innerWidth < 768 ? .58 : .62), oy = (H - IMG.h * s) * .5;
+      emit = FIXTURES.map(([x, y], i) => ({
+        x: ox + x * s, y: oy + y * s,
+        phase: i * 1.7, speed: .35 + (i % 3) * .12, flick: Math.random() * 10
+      }));
+    }
+    layout();
+    addEventListener('resize', layout);
 
-    if (finePointer && !reduced) {
+    // aim: 0 = free show pattern, 1 = all beams converge on the pointer
+    const aim = { k: 0, x: W * .5, y: H * .3 };
+    const target = { x: aim.x, y: aim.y };
+    let burst = 0, burstAt = { x: 0, y: 0 };
+
+    const toLocal = (cx, cy) => {
+      const r = box.getBoundingClientRect();
+      return { x: (cx - r.left) * (W / r.width), y: (cy - r.top) * (H / r.height) };
+    };
+    const hero = $('.hero');
+    if (finePointer) {
       hero.addEventListener('pointermove', (e) => {
-        const r = media.getBoundingClientRect();
-        aim(e.clientX - r.left, e.clientY - r.top);
+        const p = toLocal(e.clientX, e.clientY); target.x = p.x; target.y = p.y;
+        gsap.to(aim, { k: 1, duration: .8, ease: 'power2.out', overwrite: 'auto' });
       });
-      hero.addEventListener('pointerleave', () => { const p = rest(); aim(p.x, p.y); });
-      // bump on click, like pushing the fader to full
-      hero.addEventListener('pointerdown', () => gsap.fromTo([pool, hot], { scale: 1.12 }, { scale: 1, duration: 1.2, ease: 'expo.out' }));
-    } else if (!reduced) {
-      const p = { t: 0 };
-      gsap.to(p, { t: 1, duration: 9, ease: 'sine.inOut', yoyo: true, repeat: -1, onUpdate: () => {
-        aim(media.clientWidth * (.42 + p.t * .4), media.clientHeight * (.55 + Math.sin(p.t * Math.PI) * .08));
-      } });
+      hero.addEventListener('pointerleave', () => gsap.to(aim, { k: 0, duration: 1.4, ease: 'power2.inOut', overwrite: 'auto' }));
+    }
+    hero.addEventListener('pointerdown', (e) => {
+      const p = toLocal(e.clientX, e.clientY);
+      burstAt = p; target.x = p.x; target.y = p.y;
+      gsap.fromTo({ v: 1 }, { v: 1 }, { v: 0, duration: 1.1, ease: 'power2.out', onUpdate() { burst = this.targets()[0].v; } });
+      if (!finePointer) { // touch: converge briefly on the tap
+        gsap.timeline({ overwrite: 'auto' }).to(aim, { k: 1, duration: .5, ease: 'power2.out' }).to(aim, { k: 0, duration: 1.4, ease: 'power2.inOut' }, '+=1.2');
+      }
+    });
+
+    function beam(x0, y0, dx, dy, alpha, len) {
+      const x1 = x0 + dx * len, y1 = y0 + dy * len;
+      const g = (a) => {
+        const gr = ctx.createLinearGradient(x0, y0, x1, y1);
+        gr.addColorStop(0, `rgba(${a[0]},${a[1] * alpha})`);
+        gr.addColorStop(.35, `rgba(${a[0]},${a[1] * alpha * .6})`);
+        gr.addColorStop(1, `rgba(${a[0]},0)`);
+        return gr;
+      };
+      ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1);
+      ctx.lineWidth = 16; ctx.strokeStyle = g([GLOW, .05]); ctx.stroke();
+      ctx.lineWidth = 4.5; ctx.strokeStyle = g([GLOW, .16]); ctx.stroke();
+      ctx.lineWidth = 1.3; ctx.strokeStyle = g([CORE, .95]); ctx.stroke();
+    }
+    function glow(x, y, r, a, rgb = CORE) {
+      const gr = ctx.createRadialGradient(x, y, 0, x, y, r);
+      gr.addColorStop(0, `rgba(${rgb},${a})`); gr.addColorStop(1, `rgba(${rgb},0)`);
+      ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
     }
 
-    // real fixtures never sit perfectly still: tiny intensity breathing
-    if (!reduced) gsap.to(pool, { opacity: .9, duration: 2.4, ease: 'sine.inOut', yoyo: true, repeat: -1 });
+    let t = 0, running = false, visible = true;
+    new IntersectionObserver(([en]) => { visible = en.isIntersecting; }).observe(hero);
 
-    // beam from the fixture on the upstage truss to the pool
-    const H = 1400;
-    gsap.ticker.add(() => {
-      const sx = media.clientWidth * SPOT_SOURCE.x, sy = media.clientHeight * SPOT_SOURCE.y;
-      const dx = gsap.getProperty(pool, 'x') - sx, dy = gsap.getProperty(pool, 'y') - sy;
-      const len = Math.max(Math.hypot(dx, dy), 1);
-      gsap.set(beam, { x: sx, y: sy, xPercent: -50, rotation: -Math.atan2(dx, dy) * 180 / Math.PI, scaleY: (len + 60) / H });
-    });
+    function frame(time, delta) {
+      if (!visible) return;
+      t += (reduced ? 0 : delta / 1000);
+      // pointer lag gives the beams weight, like moving heads catching up
+      aim.x += (target.x - aim.x) * .14; aim.y += (target.y - aim.y) * .14;
+
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.clearRect(0, 0, W, H);
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.lineCap = 'round';
+      const len = Math.hypot(W, H) * 1.2;
+
+      emit.forEach((e, i) => {
+        // free pattern: mirrored fans sweeping up into the haze
+        const side = e.x < W * .5 ? -1 : 1;
+        const a = -Math.PI / 2 + side * .22 + Math.sin(t * e.speed + e.phase) * .55;
+        let dx = Math.cos(a), dy = Math.sin(a);
+        // converge on the pointer
+        let px = aim.x - e.x, py = aim.y - e.y; const pl = Math.hypot(px, py) || 1; px /= pl; py /= pl;
+        dx = dx + (px - dx) * aim.k; dy = dy + (py - dy) * aim.k;
+        const dl = Math.hypot(dx, dy) || 1; dx /= dl; dy /= dl;
+
+        const flick = .82 + .18 * Math.sin(t * 23 + e.flick) * Math.sin(t * 7.3 + e.flick * 2);
+        beam(e.x, e.y, dx, dy, flick, len);
+
+        // click: each fixture opens a fan for a moment
+        if (burst > 0) {
+          const base = Math.atan2(dy, dx), spread = (1 - burst) * .5 + .08;
+          for (let n = -3; n <= 3; n++) {
+            if (!n) continue;
+            const b = base + n * spread * .18;
+            beam(e.x, e.y, Math.cos(b), Math.sin(b), burst * .7, len);
+          }
+        }
+        glow(e.x, e.y, 16, .55 * flick);         // aperture
+        glow(e.x, e.y, 60, .12, GLOW);           // halo on the fixture
+      });
+
+      // where the beams cross
+      if (aim.k > .02) {
+        glow(aim.x, aim.y, 70, .22 * aim.k, GLOW);
+        glow(aim.x, aim.y, 14, .8 * aim.k);
+        ctx.lineWidth = 1; ctx.strokeStyle = `rgba(${CORE},${.5 * aim.k})`;
+        ctx.beginPath(); ctx.moveTo(aim.x - 34, aim.y); ctx.lineTo(aim.x + 34, aim.y);
+        ctx.moveTo(aim.x, aim.y - 34); ctx.lineTo(aim.x, aim.y + 34); ctx.stroke();
+      }
+      if (burst > 0) glow(burstAt.x, burstAt.y, 140 * (1.3 - burst), .35 * burst, GLOW);
+    }
+
+    return {
+      start() {
+        if (running) return; running = true;
+        if (reduced) { frame(0, 0); return; }
+        gsap.ticker.add(frame);
+      }
+    };
+  }
+  const lasers = hasGsap ? createLasers() : null;
+  // fixtures are mapped to the final frame, so the lasers fire once the camera has landed
+  let lasersLit = false;
+  function lightLasers() {
+    if (!lasers || lasersLit) return;
+    lasersLit = true;
+    lasers.start();
+    gsap.to('#lasers', { opacity: 1, duration: 1.8, ease: 'power2.inOut' });
   }
 
   /* ═════════ Scroll choreography ═════════ */
@@ -1131,11 +1165,12 @@
 
   function showFinalStill() {
     finalFrame.style.opacity = 1;
+    lightLasers();
     if (hasGsap) gsap.to(video, { opacity: 0, duration: 1.2, ease: 'power2.inOut' });
     else video.style.opacity = 0;
   }
 
-  video.addEventListener('ended', () => { finalFrame.style.opacity = 1; reveal(); });
+  video.addEventListener('ended', () => { finalFrame.style.opacity = 1; reveal(); lightLasers(); });
 
   function skip() {
     if (hasGsap && !video.muted) gsap.to(video, { volume: 0, duration: .6, onComplete: () => video.pause() });
@@ -1199,7 +1234,6 @@
   $('#enterMute').addEventListener('click', () => startIntro(false), { once: true });
 
   initCursor();
-  initLamp();
   addEventListener('load', () => window.ScrollTrigger && ScrollTrigger.refresh());
 
   if (reduced) {
@@ -1208,6 +1242,7 @@
     $('#loader').remove();
     $('#bars').style.display = 'none';
     reveal({ instant: true });
+    lightLasers();
   } else {
     let started = false;
     const begin = () => { if (!started) { started = true; showGate(); } };
