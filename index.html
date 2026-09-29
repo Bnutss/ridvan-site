@@ -913,10 +913,9 @@
   }
 
   /* ═════════ Smooth scroll: Lenis driven by the GSAP ticker ═════════ */
-  const expoOut = (t) => (t === 1 ? 1 : 1 - Math.pow(2, -10 * t));
   let lenis = null;
   if (window.Lenis && hasGsap && !reduced) {
-    lenis = new Lenis({ duration: 1.35, easing: expoOut, smoothWheel: true, wheelMultiplier: .9, touchMultiplier: 1.4 });
+    lenis = new Lenis({ lerp: .075, smoothWheel: true, wheelMultiplier: .65, touchMultiplier: 1.1 });
     lenis.stop(); // locked until the intro hands over
     if (window.ScrollTrigger) lenis.on('scroll', ScrollTrigger.update);
     gsap.ticker.add((t) => lenis.raf(t * 1000));
@@ -935,7 +934,7 @@
     if (!a || a.getAttribute('href').length < 2) return;
     if (a.getAttribute('href') === '#about' && pinST) {
       e.preventDefault();
-      scrollToTarget(pinST.start + (pinST.end - pinST.start) * .92);
+      scrollToTarget(pinST.start + (pinST.end - pinST.start) * .9);
       return;
     }
     const target = $(a.getAttribute('href'));
@@ -1519,35 +1518,51 @@
     let aboutShown = false;
 
     pinST = ScrollTrigger.create({
-      trigger: scenes, start: 'top top', end: () => '+=' + innerHeight * 2.6,
+      trigger: scenes, start: 'top top', end: () => '+=' + innerHeight * 4.2,
+      pin: true, pinSpacing: true, anticipatePin: 1, refreshPriority: 2, invalidateOnRefresh: true
+    });
+    const tickerPin = ScrollTrigger.create({
+      trigger: ticker, start: 'center center', end: () => '+=' + innerHeight * 2.4,
       pin: true, pinSpacing: true, anticipatePin: 1, refreshPriority: 1, invalidateOnRefresh: true
     });
-    const st2 = ScrollTrigger.create({ trigger: ticker, start: 'top bottom', end: 'center center' });
-    const st3 = ScrollTrigger.create({ trigger: ticker, start: 'center center', end: () => '+=' + innerHeight * .95, invalidateOnRefresh: true });
-    const prog = (st, y) => st.end > st.start ? Math.min(Math.max((y - st.start) / (st.end - st.start), 0), 1) : 0;
+    const approach = ScrollTrigger.create({ trigger: ticker, start: 'top bottom', end: 'center center' });
+    const clamp01 = (v) => Math.min(Math.max(v, 0), 1);
+    const prog = (st, y) => st.end > st.start ? clamp01((y - st.start) / (st.end - st.start)) : 0;
+    // phase 2 = approach + first third of the ticker pin; phase 3 = last half of it (a hold sits between)
+    const span = (y, a, b) => b > a ? clamp01((y - a) / (b - a)) : 0;
+
+    // particles trail the scroll with weight, so a hard flick never skips a transition
+    let sy = lenis ? lenis.scroll : scrollY, last = performance.now();
 
     gsap.ticker.add((time) => {
-      const y = lenis ? lenis.scroll : scrollY;
-      const p1 = prog(pinST, y), p2 = prog(st2, y), p3 = prog(st3, y);
+      const now = performance.now(), dt = Math.min((now - last) / 1000, .1); last = now;
+      const target = lenis ? lenis.scroll : scrollY;
+      sy += (target - sy) * (1 - Math.exp(-dt * 5));
+      if (Math.abs(target - sy) < .5) sy = target;
+      const y = sy;
+      const L = tickerPin.end - tickerPin.start;
+      const p1 = prog(pinST, y);
+      const p2 = span(y, approach.start, tickerPin.start + L * .35);
+      const p3 = span(y, tickerPin.start + L * .48, tickerPin.end);
 
       // ── DOM side of the choreography
       heroOp = 1 - sm(p1, .06, .16);
       hero.style.opacity = heroOp;
       hero.style.visibility = heroOp < .01 ? 'hidden' : '';
       ui.style.opacity = 1 - sm(p1, 0, .08);
-      const aboutOp = sm(p1, .72, .86) * (1 - sm(p2, .02, .14));
+      const aboutOp = sm(p1, .66, .78) * (1 - sm(p2, .02, .14));
       about.style.opacity = aboutOp;
       about.style.visibility = aboutOp < .01 ? 'hidden' : 'visible';
-      aboutImg.style.transform = `scale(${1.08 - .08 * sm(p1, .72, 1)})`;
-      if (p1 > .84 && !aboutShown) { aboutShown = true; aboutTl.timeScale(1).play(); }
-      else if (p1 < .78 && aboutShown) { aboutShown = false; aboutTl.timeScale(2).reverse(); }
+      aboutImg.style.transform = `scale(${1.08 - .08 * sm(p1, .66, 1)})`;
+      if (p1 > .76 && !aboutShown) { aboutShown = true; aboutTl.timeScale(1).play(); }
+      else if (p1 < .7 && aboutShown) { aboutShown = false; aboutTl.timeScale(2).reverse(); }
       const tIn = sm(p2, .8, .98);
       tickerBg.style.opacity = tIn * (1 - .75 * sm(p3, .02, .12));
       tickerView.style.opacity = tIn;
 
       // ── particle side
       let t, a;
-      if (p2 <= 0)      { t = sm(p1, .12, .78);                      a = sm(p1, .03, .12) * (1 - sm(p1, .8, .92)); }
+      if (p2 <= 0)      { t = sm(p1, .1, .7);                        a = sm(p1, .03, .1) * (1 - sm(p1, .74, .84)); }
       else if (p3 <= 0) { t = 1 + sm(p2, .08, .85);                  a = sm(p2, 0, .1) * (1 - sm(p2, .85, 1)); }
       else              { t = 2 + sm(p3, .06, .5) + sm(p3, .6, 1);   a = p3 >= 1 ? 0 : sm(p3, 0, .08); }
 
