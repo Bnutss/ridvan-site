@@ -514,6 +514,41 @@
     .about__title { font-size: clamp(40px, 12vw, 64px); }
   }
 
+  /* ───────────── Ticker ───────────── */
+  .ticker {
+    position: relative; overflow: hidden;
+    height: clamp(112px, 13.8vw, 250px);
+    background: var(--bg);
+  }
+  .ticker__bg { position: absolute; inset: 0; mix-blend-mode: screen; }
+  .ticker__bg img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 50%; will-change: transform; }
+  /* light pulses racing along the two laser lines (lines sit at 23% / 76% of the art) */
+  .ticker__spark {
+    position: absolute; left: 0; width: 220px; height: 10px; margin-top: -5px; pointer-events: none;
+    mix-blend-mode: screen;
+    background: radial-gradient(closest-side, rgba(255,255,255,.95), rgba(140,195,255,.55) 35%, transparent 100%);
+    filter: blur(1px);
+  }
+  .ticker__spark--a { top: 23.2%; animation: spark 7s linear infinite; }
+  .ticker__spark--b { top: 76.1%; animation: spark 9.5s linear -3s infinite reverse; }
+  @keyframes spark { from { transform: translateX(-240px); } to { transform: translateX(100vw); } }
+
+  .ticker__viewport { position: absolute; left: 0; right: 0; top: 23.2%; bottom: 23.9%; display: flex; align-items: center; overflow: hidden; }
+  .ticker__track { display: flex; width: max-content; will-change: transform; }
+  .ticker__group { display: flex; align-items: center; margin: 0; padding: 0; list-style: none; }
+  .ticker__item {
+    padding: 0 clamp(22px, 2.6vw, 40px);
+    font-size: clamp(12px, 1vw, 15px); font-weight: 400; letter-spacing: .16em; text-transform: uppercase; white-space: nowrap;
+    color: rgba(236,242,249,.86);
+    transition: color .4s, text-shadow .4s;
+  }
+  .ticker__item.is-plain { text-transform: none; letter-spacing: .1em; }
+  .ticker__item:hover { color: #fff; text-shadow: 0 0 18px rgba(140,195,255,.95); }
+  .ticker__mark { display: grid; place-items: center; color: rgba(236,242,249,.9); }
+  .ticker__mark svg { width: clamp(18px, 1.5vw, 24px); height: auto; }
+
+  @media (prefers-reduced-motion: reduce) { .ticker__spark { animation: none; opacity: 0; } }
+
   /* ───────────── Work ───────────── */
   .work { position: relative; padding: clamp(96px, 13vw, 180px) var(--gutter) clamp(80px, 10vw, 140px); background: var(--bg); }
   .work__head { display: flex; justify-content: space-between; align-items: end; gap: 24px; margin-bottom: clamp(40px, 5vw, 72px); }
@@ -766,6 +801,32 @@
 </div>
 
 <main id="main">
+  <!-- ───── Ticker ───── -->
+  <section class="ticker" id="ticker" aria-label="Disciplines, tools and base">
+    <div class="ticker__bg" aria-hidden="true"><img src="assets/ticker.jpg" alt="" width="2172" height="300" loading="lazy"></div>
+    <span class="ticker__spark ticker__spark--a" aria-hidden="true"></span>
+    <span class="ticker__spark ticker__spark--b" aria-hidden="true"></span>
+    <div class="ticker__viewport">
+      <div class="ticker__track" id="tickerTrack">
+        <ul class="ticker__group">
+          <li class="ticker__item">Show production</li>
+          <li class="ticker__mark" aria-hidden="true"><svg viewBox="0 0 26 24" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 22V2.5h7a5 5 0 0 1 0 10h-7M8.5 12.5 13.5 22M16 2.5 24 22"/></svg></li>
+          <li class="ticker__item">Stage visuals</li>
+          <li class="ticker__mark" aria-hidden="true"><svg viewBox="0 0 26 24" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 22V2.5h7a5 5 0 0 1 0 10h-7M8.5 12.5 13.5 22M16 2.5 24 22"/></svg></li>
+          <li class="ticker__item is-plain">grandMA3</li>
+          <li class="ticker__mark" aria-hidden="true"><svg viewBox="0 0 26 24" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 22V2.5h7a5 5 0 0 1 0 10h-7M8.5 12.5 13.5 22M16 2.5 24 22"/></svg></li>
+          <li class="ticker__item">Concerts</li>
+          <li class="ticker__mark" aria-hidden="true"><svg viewBox="0 0 26 24" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 22V2.5h7a5 5 0 0 1 0 10h-7M8.5 12.5 13.5 22M16 2.5 24 22"/></svg></li>
+          <li class="ticker__item">Festivals</li>
+          <li class="ticker__mark" aria-hidden="true"><svg viewBox="0 0 26 24" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 22V2.5h7a5 5 0 0 1 0 10h-7M8.5 12.5 13.5 22M16 2.5 24 22"/></svg></li>
+          <li class="ticker__item">Antalya</li>
+          <li class="ticker__mark" aria-hidden="true"><svg viewBox="0 0 26 24" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 22V2.5h7a5 5 0 0 1 0 10h-7M8.5 12.5 13.5 22M16 2.5 24 22"/></svg></li>
+          <li class="ticker__item">TÜRKİYE</li>
+          <li class="ticker__mark" aria-hidden="true"><svg viewBox="0 0 26 24" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 22V2.5h7a5 5 0 0 1 0 10h-7M8.5 12.5 13.5 22M16 2.5 24 22"/></svg></li>
+        </ul>
+      </div>
+    </div>
+  </section>
   <section class="work" id="work" aria-labelledby="workTitle">
     <div class="work__head">
       <div>
@@ -1181,6 +1242,57 @@
       }
     };
   }
+  /* ═════════ Ticker: endless loop that answers the scroll ═════════ */
+  function initTicker() {
+    const track = $('#tickerTrack');
+    const group = track.firstElementChild;
+    const fill = () => {
+      $$('.ticker__group[aria-hidden]', track).forEach(n => n.remove());
+      const gw = group.offsetWidth;
+      const copies = Math.ceil((innerWidth * 2) / gw) + 1;
+      for (let i = 0; i < copies; i++) {
+        const c = group.cloneNode(true); c.setAttribute('aria-hidden', 'true'); track.appendChild(c);
+      }
+      return gw;
+    };
+    let gw = fill();
+    addEventListener('resize', () => { gw = fill(); });
+    document.fonts?.ready.then(() => { gw = fill(); });
+    if (!hasGsap || reduced) return;
+
+    let x = 0, dir = -1, boost = 0, hoverK = 1, hoverTo = 1, sk = 0, visible = false;
+    const BASE = 48; // px per second
+    new IntersectionObserver(([e]) => { visible = e.isIntersecting; }).observe($('#ticker'));
+    const tk = $('#ticker');
+    tk.addEventListener('pointerenter', () => { hoverTo = .25; });
+    tk.addEventListener('pointerleave', () => { hoverTo = 1; });
+    lenis?.on('scroll', ({ velocity }) => {
+      if (Math.abs(velocity) > .4) dir = velocity > 0 ? -1 : 1; // follows the scroll direction
+      boost = Math.min(Math.abs(velocity) * 60, 1400);
+    });
+
+    gsap.ticker.add((time, delta) => {
+      if (!visible) return;
+      const dt = delta / 1000;
+      boost *= .92;
+      hoverK += (hoverTo - hoverK) * .06;
+      x += dir * (BASE * hoverK + boost) * dt;
+      if (x <= -gw) x += gw; else if (x > 0) x -= gw;
+      sk += (gsap.utils.clamp(-10, 10, -dir * boost / 90) - sk) * .12; // lean into fast scrolls
+      track.style.transform = `translate3d(${x}px,0,0) skewX(${sk}deg)`;
+    });
+
+    // entrance: the laser band draws out from the centre, then the words arrive
+    if (window.ScrollTrigger) {
+      gsap.timeline({ scrollTrigger: { trigger: '#ticker', start: 'top 85%' } })
+        .fromTo('.ticker__bg', { clipPath: 'inset(0% 50% 0% 50%)' }, { clipPath: 'inset(0% 0% 0% 0%)', duration: 1.6, ease: 'expo.inOut' })
+        .from('.ticker__viewport', { opacity: 0, duration: 1.2, ease: 'power2.out' }, .7);
+      gsap.fromTo('.ticker__bg img', { xPercent: -2, scale: 1.06 }, { xPercent: 2, scale: 1.06, ease: 'none',
+        scrollTrigger: { trigger: '#ticker', start: 'top bottom', end: 'bottom top', scrub: 1 } });
+    }
+  }
+  initTicker();
+
   const lasers = hasGsap ? createLasers() : null;
   // fixtures are mapped to the final frame, so the lasers fire once the camera has landed
   let lasersLit = false;
